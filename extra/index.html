@@ -1,0 +1,1276 @@
+<!doctype html>
+<!-- upay Smart Cash-Flow Copilot: the wallet screen. One self-contained file, all data simulated. -->
+<html lang="en">
+<head>
+  <!-- SECTION: page setup (character set, phone scaling, tab title) -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>upay Smart Cash-Flow Copilot</title>
+
+  <style>
+    /* SECTION: design settings. Change colours, corner radius or font here and the whole page follows. */
+    :root {
+      --font: system-ui, -apple-system, "Segoe UI", Roboto, "Nirmala UI", "Noto Sans Bengali", "Vrinda", sans-serif;
+      --radius: 14px;              /* Corner rounding of cards. */
+      --radius-small: 999px;       /* Pill shape for chips and tags. */
+      --page-bg: #eef2f5;          /* Area around the phone column. */
+      --card-bg: #ffffff;          /* Card background. */
+      --text: #1b2733;             /* Main text. */
+      --text-soft: #4a5866;        /* Secondary text (still good contrast). */
+      --line: #d7dee5;             /* Thin borders. */
+      --brand: #0b5c8a;            /* Title bar and main accents. */
+      --brand-text: #ffffff;       /* Text on the title bar. */
+      --focus: #f2b705;            /* Keyboard focus ring. */
+      --low-bg: #dcf2e3;  --low-text: #165c34;      /* Low risk: calm green. */
+      --medium-bg: #fcecc6; --medium-text: #6b4a00; /* Medium risk: amber. */
+      --high-bg: #fbdac4; --high-text: #8a3300;     /* High risk: deep orange, never alarming red. */
+      --chart-line: #0b5c8a;       /* Balance line on the chart. */
+      --chart-floor: #8a3300;      /* Dashed floor line. */
+      --chart-unknown: #e6eaee;    /* Shaded "not known yet" area. */
+      --note-bg: #f4f6f8;          /* Background of notes. */
+      --tag-bg: #e8eef3;           /* "Suggestion only" tag. */
+    }
+
+    /* SECTION: base page. Phone-width column, centred on desktop, full width on phones. */
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--page-bg); color: var(--text);
+      font-family: var(--font); font-size: 16px; line-height: 1.5;
+    }
+    .app { max-width: 420px; margin: 0 auto; min-height: 100vh; background: var(--page-bg); }
+
+    /* SECTION: keyboard focus. Always visible when moving with the Tab key. */
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+    /* SECTION: top bar (title, simulated-data badge, language toggle). */
+    .topbar { background: var(--brand); color: var(--brand-text); padding: 16px; }
+    .topbar h1 { margin: 0 0 8px; font-size: 1.25rem; line-height: 1.3; }
+    .topbar-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .badge {
+      font-size: 0.8125rem; padding: 2px 10px; border-radius: var(--radius-small);
+      border: 1px solid var(--brand-text);
+    }
+    .lang-toggle { display: flex; border: 1px solid var(--brand-text); border-radius: var(--radius-small); overflow: hidden; }
+    .lang-toggle button {
+      font: inherit; font-size: 0.9375rem; padding: 4px 12px; min-height: 36px;
+      background: transparent; color: var(--brand-text); border: 0; cursor: pointer;
+    }
+    .lang-toggle button[aria-pressed="true"] { background: var(--brand-text); color: var(--brand); font-weight: 600; }
+
+    /* SECTION: controls (user and month dropdowns). */
+    .controls { display: flex; gap: 12px; padding: 16px; }
+    .controls label { flex: 1; display: flex; flex-direction: column; font-size: 0.875rem; color: var(--text-soft); }
+    .controls select {
+      font: inherit; font-size: 1rem; color: var(--text); margin-top: 4px; padding: 8px;
+      min-height: 44px; border: 1px solid var(--line); border-radius: 8px; background: var(--card-bg);
+    }
+
+    /* SECTION: demo personas ("Try a demo case" buttons). Wraps on phones; 44px tap targets. */
+    .personas { padding: 0 16px 8px; }
+    .personas h2 { font-size: 0.875rem; font-weight: normal; color: var(--text-soft); margin: 0 0 6px; }
+    .persona-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .persona-row button {
+      font: inherit; font-size: 0.875rem; color: var(--text); min-height: 44px; max-width: 100%; padding: 8px 12px;
+      border: 1px solid var(--line); border-radius: 8px; background: var(--card-bg); cursor: pointer;
+    }
+    .persona-row button[aria-pressed="true"] { background: var(--brand); color: var(--brand-text); border-color: var(--brand); font-weight: 600; }
+
+    /* SECTION: status line (loading and error messages). */
+    .status { margin: 0 16px 12px; padding: 12px 14px; border-radius: var(--radius); background: var(--card-bg); }
+    .status.error { background: var(--high-bg); color: var(--high-text); }
+    .status:empty { display: none; }
+
+    /* SECTION: cards (shared look for every card on the page). */
+    .cards { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+    .card { background: var(--card-bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+    .card h2 { margin: 0 0 8px; font-size: 1.0625rem; }
+    .card h3 { margin: 10px 0 0; font-size: 0.9375rem; color: var(--text-soft); }
+    .card p { margin: 0; }
+    .soft { color: var(--text-soft); font-size: 0.9375rem; }
+    .msg:empty { display: none; }
+
+    /* SECTION: risk card (big band chip). */
+    .chip {
+      display: inline-block; font-size: 1.25rem; font-weight: 700; padding: 6px 18px;
+      border-radius: var(--radius-small); margin-bottom: 10px;
+    }
+    .chip.low { background: var(--low-bg); color: var(--low-text); }
+    .chip.medium { background: var(--medium-bg); color: var(--medium-text); }
+    .chip.high { background: var(--high-bg); color: var(--high-text); }
+
+    /* SECTION: balance chart. Labels get a card-coloured outline so they stay readable over lines. */
+    .chart svg { width: 100%; height: auto; display: block; }
+    .chart .axis-text { font-size: 12px; fill: var(--text-soft); font-family: var(--font); }
+    .chart .floor-text { font-size: 12px; fill: var(--chart-floor); font-family: var(--font); }
+    .chart .end-text { font-size: 12px; font-weight: 700; fill: var(--chart-line); font-family: var(--font); }
+    .chart .halo { paint-order: stroke; stroke: var(--card-bg); stroke-width: 3px; stroke-linejoin: round; }
+
+    /* SECTION: reasons list (neutral arrows, no good/bad colours). */
+    .reasons { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+    .reasons li { display: flex; gap: 10px; align-items: flex-start; }
+    .arrow {
+      flex: none; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: center; color: var(--text-soft); font-weight: 700;
+    }
+
+    /* SECTION: suggestions and notes. */
+    .tag {
+      display: inline-block; font-size: 0.8125rem; padding: 2px 10px; margin-bottom: 8px;
+      border-radius: var(--radius-small); background: var(--tag-bg); color: var(--text-soft);
+    }
+    .big-amount { font-size: 2rem; font-weight: 700; line-height: 1.2; margin-bottom: 6px; }
+    .fee-label { margin-top: 8px; font-size: 0.875rem; color: var(--text-soft); font-style: italic; }
+    .note { background: var(--note-bg); }
+    .note.clear { background: var(--card-bg); border: 2px solid var(--brand); }
+
+    /* SECTION: month summary bars. Bar widths are display scaling only; the amounts shown are the API's. */
+    .bars { list-style: none; margin: 6px 0 4px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .bar-row { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9375rem; }
+    .bar-amount { font-weight: 600; white-space: nowrap; }
+    .bar-track { height: 10px; border-radius: var(--radius-small); background: var(--note-bg); overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: var(--radius-small); background: var(--chart-line); }
+    .summary-text { margin-top: 10px !important; }
+
+    /* SECTION: forms (savings planner and what-if inputs and buttons). */
+    .field-row { display: flex; gap: 12px; }
+    .field-row .field { flex: 1; }
+    .field { display: flex; flex-direction: column; font-size: 0.875rem; color: var(--text-soft); margin-bottom: 10px; }
+    .field input {
+      font: inherit; font-size: 1rem; color: var(--text); margin-top: 4px; padding: 8px;
+      min-height: 44px; border: 1px solid var(--line); border-radius: 8px; background: var(--card-bg);
+    }
+    .btn {
+      font: inherit; font-weight: 600; min-height: 44px; padding: 8px 18px; border: 0; cursor: pointer;
+      border-radius: var(--radius-small); background: var(--brand); color: var(--brand-text);
+    }
+    .btn.small { min-height: 36px; padding: 4px 14px; font-weight: 400; background: var(--tag-bg); color: var(--text); }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+    .form-error { color: var(--high-text); }
+    .result { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .result:empty { display: none; }
+    .result ul { margin: 0; padding-left: 20px; }
+
+    /* SECTION: what-if card (slider, optional fields, side-by-side band chips). */
+    .slider-label { display: block; font-weight: 600; }
+    input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--brand); }
+    .slider-values { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-bottom: 8px; }
+    .slider-values .now { font-weight: 700; }
+    details { margin: 4px 0 12px; }
+    summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--brand); }
+    .compare { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .compare .soft { display: block; }
+    .compare .chip { margin: 4px 0 0; font-size: 1rem; }
+
+    /* SECTION: tabs and results tab (tab bar, tables, judges' results). Nothing here may widen the page at 320px. */
+    .tabs { display: flex; gap: 8px; padding: 12px 16px 0; }
+    .tabs button {
+      flex: 1; min-width: 0; min-height: 44px; font: inherit; font-size: 0.9375rem; cursor: pointer;
+      background: var(--card-bg); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius-small);
+    }
+    .tabs button[aria-selected="true"] { background: var(--brand); color: var(--brand-text); border-color: var(--brand); font-weight: 600; }
+    .cards > * { min-width: 0; }
+    svg { max-width: 100%; }
+    .table-wrap { overflow-x: auto; max-width: 100%; margin-top: 8px; }
+    .table-wrap table { border-collapse: collapse; width: 100%; font-size: 0.875rem; }
+    .table-wrap caption { text-align: left; font-weight: 600; padding-bottom: 4px; }
+    .table-wrap th, .table-wrap td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .table-wrap td.num, .table-wrap th.num { text-align: right; white-space: nowrap; }
+    .plain-list { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+    /* SECTION: footer (disclaimer and training-month banner). */
+    .footer { padding: 0 16px 24px; }
+    .training { margin: 0 0 10px; padding: 10px 14px; border-radius: var(--radius); background: var(--medium-bg); color: var(--medium-text); font-size: 0.9375rem; }
+    .disclaimer { margin: 0; font-size: 0.9375rem; color: var(--text-soft); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- SECTION: top bar. Title, permanent "Simulated data" badge, EN | বাংলা toggle. -->
+    <header class="topbar">
+      <h1 data-s="title"></h1>
+      <div class="topbar-row">
+        <span class="badge" data-s="simulated"></span>
+        <div class="lang-toggle" role="group" id="lang-group">
+          <button type="button" id="lang-en" data-lang="en" aria-pressed="true">EN</button>
+          <button type="button" id="lang-bn" data-lang="bn" aria-pressed="false" lang="bn">বাংলা</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- SECTION: tab bar. Wallet (default) and the English-only results tab for judges. -->
+    <div class="tabs" role="tablist" id="tab-list">
+      <button type="button" role="tab" id="tab-wallet" aria-controls="panel-wallet" aria-selected="true" data-s="tabWallet"></button>
+      <button type="button" role="tab" id="tab-results" aria-controls="panel-results" aria-selected="false" tabindex="-1" data-s="tabResults"></button>
+    </div>
+
+    <!-- SECTION: wallet panel. Everything below up to the footer belongs to the wallet tab. -->
+    <div role="tabpanel" id="panel-wallet" aria-labelledby="tab-wallet">
+    <!-- SECTION: controls. User and month dropdowns. -->
+    <div class="controls">
+      <label><span data-s="userLabel"></span><select id="user-select"></select></label>
+      <label><span data-s="monthLabel"></span><select id="month-select"></select></label>
+    </div>
+
+    <!-- SECTION: demo personas. Each button sets the dropdowns to a scanned user-month. -->
+    <div class="personas" role="group" aria-labelledby="persona-title">
+      <h2 id="persona-title" data-s="demoTitle"></h2>
+      <div class="persona-row">
+        <button type="button" data-persona="0" data-s="persona0" aria-pressed="false"></button>
+        <button type="button" data-persona="1" data-s="persona1" aria-pressed="false"></button>
+        <button type="button" data-persona="2" data-s="persona2" aria-pressed="false"></button>
+        <button type="button" data-persona="3" data-s="persona3" aria-pressed="false"></button>
+        <button type="button" data-persona="4" data-s="persona4" aria-pressed="false"></button>
+        <button type="button" data-persona="5" data-s="persona5" aria-pressed="false"></button>
+      </div>
+    </div>
+
+    <!-- SECTION: status. Loading and error messages, read aloud by screen readers. -->
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+
+    <main class="cards" id="cards" hidden>
+      <!-- SECTION: risk card. Band chip and the API's sentence. Never a probability or percentage. -->
+      <section class="card" aria-labelledby="risk-title">
+        <h2 id="risk-title" data-s="riskTitle"></h2>
+        <span class="chip" id="risk-chip"></span>
+        <p id="risk-text"></p>
+        <!-- SECTION: estimated minimum balance. Only shown when the API sends it. -->
+        <p class="soft" id="min-balance" hidden></p>
+      </section>
+
+      <!-- SECTION: balance chart. Filled in by the chart code below. -->
+      <section class="card chart" aria-labelledby="chart-title">
+        <h2 id="chart-title" data-s="chartTitle"></h2>
+        <div id="chart"></div>
+      </section>
+
+      <!-- SECTION: reasons. What the model looked at, with neutral arrows. -->
+      <section class="card" aria-labelledby="reasons-title">
+        <h2 id="reasons-title" data-s="reasonsTitle"></h2>
+        <p class="soft" data-s="reasonsLabel"></p>
+        <ul class="reasons" id="reasons"></ul>
+      </section>
+
+      <!-- SECTION: suggestions and notes. Cards are added by the code below. -->
+      <section aria-labelledby="sugg-title" id="sugg-section">
+        <h2 id="sugg-title" class="soft" data-s="suggTitle" style="margin:4px 0 8px;font-size:1rem"></h2>
+        <div class="cards" id="suggestions" style="padding:0"></div>
+      </section>
+
+      <!-- SECTION: month summary. Spending by category and by week, then the API's sentence. -->
+      <section class="card" aria-labelledby="summary-title">
+        <h2 id="summary-title" data-s="summaryTitle"></h2>
+        <p class="msg soft" id="summary-msg" aria-live="polite"></p>
+        <div id="summary-body" hidden>
+          <h3 data-s="byCategory"></h3>
+          <ul class="bars" id="sum-cat"></ul>
+          <h3 data-s="byWeek"></h3>
+          <ul class="bars" id="sum-week"></ul>
+          <p class="summary-text" id="sum-text"></p>
+        </div>
+      </section>
+
+      <!-- SECTION: savings planner. Goal and months, checked in the page before anything is sent. -->
+      <section class="card" aria-labelledby="savings-title">
+        <h2 id="savings-title" data-s="savingsTitle"></h2>
+        <form id="savings-form" novalidate>
+          <div class="field-row">
+            <label class="field"><span data-s="goalLabel"></span>
+              <input type="number" id="sv-goal" inputmode="numeric" min="1" max="500000" step="1"></label>
+            <label class="field"><span data-s="monthsLabel"></span>
+              <input type="number" id="sv-months" inputmode="numeric" min="1" max="24" step="1"></label>
+          </div>
+          <button type="submit" class="btn" data-s="planButton"></button>
+        </form>
+        <div class="result" id="savings-out" aria-live="polite"></div>
+      </section>
+
+      <!-- SECTION: what-if. Day-20 balance slider, optional "set to" fields, original vs new band. -->
+      <section class="card" aria-labelledby="whatif-title">
+        <h2 id="whatif-title" data-s="whatifTitle"></h2>
+        <form id="wi-form" novalidate>
+          <label class="slider-label" for="wi-balance" data-s="sliderLabel"></label>
+          <input type="range" id="wi-balance" min="0" step="1" disabled>
+          <div class="slider-values">
+            <span class="now" id="wi-now"></span>
+            <span class="soft" id="wi-start"></span>
+            <button type="button" class="btn small" id="wi-reset" data-s="reset" disabled></button>
+          </div>
+          <details>
+            <summary data-s="optionalTitle"></summary>
+            <div id="wi-fields"></div>
+          </details>
+          <button type="submit" class="btn" id="wi-send" data-s="whatifButton" disabled></button>
+        </form>
+        <div class="result" id="wi-out" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <!-- SECTION: footer. Training-month banner and the API's disclaimer. -->
+    <footer class="footer" id="footer" hidden>
+      <p class="training" id="training" data-s="trainingBanner" hidden></p>
+      <p class="disclaimer" id="disclaimer"></p>
+    </footer>
+    </div>
+
+    <!-- SECTION: results panel. English only by design; filled from GET /results the first time it opens. -->
+    <div role="tabpanel" id="panel-results" aria-labelledby="tab-results" lang="en" hidden>
+      <div class="cards" style="padding-top:12px">
+        <p class="soft" id="results-note"></p>
+        <p class="msg soft" id="results-msg" aria-live="polite"></p>
+        <div class="cards" id="results-body" style="padding:0"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    // SECTION: STRINGS. Every piece of text that does not come from the API, in English and Bangla.
+    // Functions receive numbers that are already formatted for the language.
+    const STRINGS = {
+      en: {
+        title: "upay Smart Cash-Flow Copilot",
+        tabWallet: "Wallet",
+        tabResults: "Results (for judges)",
+        simulated: "Simulated data",
+        langGroup: "Language",
+        userLabel: "User",
+        monthLabel: "Month",
+        demoTitle: "Try a demo case",
+        persona0: "Alert, capped buffer",
+        persona1: "Alert, full buffer",
+        persona2: "Low risk",
+        persona3: "Savings plan works",
+        persona4: "No history yet",
+        persona5: "Alert, no buffer",
+        userN: (n) => "User " + n,
+        monthN: (n) => "Month " + n,
+        monthTest: "test",
+        monthTraining: "training",
+        loading: "Loading…",
+        errorFallback: "Something went wrong. Please try again.",
+        riskTitle: "Risk for the rest of this month",
+        band: { low: "Low risk", medium: "Medium risk", high: "High risk" },
+        minBalance: (x, y) => "Estimated lowest balance in days 21-30: about " + x + " (typically off by about " + y + ")",
+        chartTitle: "Your balance, days 1-20",
+        notKnown: "Not known yet",
+        floor: (f) => "Floor " + f,
+        day: (d) => "Day " + d,
+        chartAlt: (bal, floor) => "Line chart of your balance on days 1 to 20. Balance on day 20: " + bal +
+          ". Floor: " + floor + ". Days 21 to 30 are not known yet.",
+        reasonsTitle: "What the model looked at",
+        reasonsLabel: "Patterns in simulated data, not causes",
+        up: "Goes with higher risk",
+        down: "Goes with lower risk",
+        suggTitle: "Suggestions and notes",
+        tag: "Suggestion only, you decide",
+        bufferTitle: "Keep a buffer",
+        cashoutTitle: "Save on cash-out fees",
+        noBufferTitle: "Balance too low for a buffer",
+        trainingBanner: "This month was used to train the model. Use months 4-5 for demos.",
+        summaryTitle: "Where your money went, days 1-20",
+        byCategory: "By category",
+        byWeek: "By week",
+        week: (a, b) => "Days " + a + "-" + b,
+        savingsTitle: "Savings planner",
+        goalLabel: "Goal in BDT (1-500,000)",
+        monthsLabel: "Months (1-24)",
+        planButton: "Make a plan",
+        goalInvalid: "Please enter a goal as a whole number from 1 to 500,000 BDT.",
+        monthsInvalid: "Please enter the months as a whole number from 1 to 24.",
+        planMonthly: (x) => "Save each month: " + x,
+        planMonths: (n) => "Months needed: " + n,
+        planSavedMax: (x, n) => "Saved in " + n + " months: about " + x,
+        optionsTitle: "Other choices",
+        whatifTitle: "Try a change",
+        sliderLabel: "Try a different day-20 balance",
+        sliderNow: (x) => "Now: " + x,
+        sliderStart: (x) => "Start: " + x,
+        reset: "Reset",
+        optionalTitle: "Or set other inputs to a value (optional)",
+        whatifButton: "See the change",
+        compareBefore: "As it is",
+        compareAfter: "With your change",
+        nothingChanged: "Move the balance slider or fill in at least one field first.",
+        fieldInvalid: (name) => "Please check \"" + name + "\". Use a number from 0 to 500,000; counts and days must be whole numbers.",
+        fields: {
+          min_balance_d1_20: "Lowest balance, days 1-20 (BDT)",
+          avg_daily_spend_d1_20: "Average spending per day (BDT)",
+          total_inflow_d1_20: "Money received, days 1-20 (BDT)",
+          total_outflow_d1_20: "Money spent, days 1-20 (BDT)",
+          cashout_count_d1_20: "Number of cash-outs",
+          cashout_amount_d1_20: "Cash-out amount (BDT)",
+          days_since_last_inflow: "Days since money last came in (0-20)",
+          bill_payments_d1_20: "Number of bill payments",
+          prev_month_shortfall: "Ran short last month (0 = no, 1 = yes)",
+          inflow_vs_prev_month: "Money received so far vs all of last month (ratio; 1 = as much as last month's total)"
+        }
+      },
+      bn: {
+        title: "upay স্মার্ট ক্যাশ-ফ্লো কোপাইলট",
+        tabWallet: "ওয়ালেট",
+        tabResults: "ফলাফল (বিচারকদের জন্য)",
+        simulated: "সিমুলেটেড ডেটা",
+        langGroup: "ভাষা",
+        userLabel: "ব্যবহারকারী",
+        monthLabel: "মাস",
+        demoTitle: "একটি ডেমো দেখুন",
+        persona0: "সতর্কতা, সীমিত বাফার",
+        persona1: "সতর্কতা, পূর্ণ বাফার",
+        persona2: "কম ঝুঁকি",
+        persona3: "সঞ্চয় পরিকল্পনা সম্ভব",
+        persona4: "এখনো ইতিহাস নেই",
+        persona5: "সতর্কতা, বাফার নেই",
+        userN: (n) => "ব্যবহারকারী " + n,
+        monthN: (n) => "মাস " + n,
+        monthTest: "পরীক্ষা",
+        monthTraining: "প্রশিক্ষণ",
+        loading: "লোড হচ্ছে…",
+        errorFallback: "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।",
+        riskTitle: "এই মাসের বাকি সময়ের ঝুঁকি",
+        band: { low: "কম ঝুঁকি", medium: "মাঝারি ঝুঁকি", high: "উচ্চ ঝুঁকি" },
+        minBalance: (x, y) => "২১-৩০ দিনে আনুমানিক সর্বনিম্ন ব্যালেন্স: প্রায় " + x + " (সাধারণত প্রায় " + y + " কমবেশি হতে পারে)",
+        chartTitle: "আপনার ব্যালেন্স, ১-২০ দিন",
+        notKnown: "এখনো জানা নেই",
+        floor: (f) => "সর্বনিম্ন সীমা " + f,
+        day: (d) => "দিন " + d,
+        chartAlt: (bal, floor) => "১ থেকে ২০ দিনের ব্যালেন্সের রেখাচিত্র। ২০তম দিনের ব্যালেন্স: " + bal +
+          "। সর্বনিম্ন সীমা: " + floor + "। ২১ থেকে ৩০ দিন এখনো জানা নেই।",
+        reasonsTitle: "মডেল যা দেখেছে",
+        reasonsLabel: "সিমুলেটেড ডেটার প্যাটার্ন, কারণ নয়",
+        up: "বেশি ঝুঁকির সাথে দেখা যায়",
+        down: "কম ঝুঁকির সাথে দেখা যায়",
+        suggTitle: "পরামর্শ ও নোট",
+        tag: "শুধু পরামর্শ, সিদ্ধান্ত আপনার",
+        bufferTitle: "একটি বাফার রাখুন",
+        cashoutTitle: "ক্যাশ আউট ফি বাঁচান",
+        noBufferTitle: "বাফারের জন্য ব্যালেন্স খুব কম",
+        trainingBanner: "এই মাসটি মডেল প্রশিক্ষণে ব্যবহৃত হয়েছে। ডেমোর জন্য ৪-৫ মাস ব্যবহার করুন।",
+        summaryTitle: "আপনার টাকা কোথায় গেল, ১-২০ দিন",
+        byCategory: "খাত অনুযায়ী",
+        byWeek: "সপ্তাহ অনুযায়ী",
+        week: (a, b) => "দিন " + a + "-" + b,
+        savingsTitle: "সঞ্চয় পরিকল্পনা",
+        goalLabel: "লক্ষ্য, টাকায় (১-৫,০০,০০০)",
+        monthsLabel: "কত মাসে (১-২৪)",
+        planButton: "পরিকল্পনা দেখুন",
+        goalInvalid: "অনুগ্রহ করে লক্ষ্য হিসেবে ১ থেকে ৫,০০,০০০ টাকার মধ্যে একটি পূর্ণ সংখ্যা লিখুন।",
+        monthsInvalid: "অনুগ্রহ করে মাসের সংখ্যা ১ থেকে ২৪-এর মধ্যে একটি পূর্ণ সংখ্যায় লিখুন।",
+        planMonthly: (x) => "প্রতি মাসে জমানো: " + x,
+        planMonths: (n) => "যত মাস লাগবে: " + n,
+        planSavedMax: (x, n) => n + " মাসে জমবে প্রায় " + x,
+        optionsTitle: "অন্য বিকল্প",
+        whatifTitle: "একটি পরিবর্তন করে দেখুন",
+        sliderLabel: "২০তম দিনের অন্য একটি ব্যালেন্স দিয়ে দেখুন",
+        sliderNow: (x) => "এখন: " + x,
+        sliderStart: (x) => "শুরুতে: " + x,
+        reset: "শুরুর মানে ফিরুন",
+        optionalTitle: "অথবা অন্য তথ্যের মান বদলে দেখুন (ঐচ্ছিক)",
+        whatifButton: "পরিবর্তনটি দেখুন",
+        compareBefore: "এখন যেমন আছে",
+        compareAfter: "আপনার পরিবর্তনে",
+        nothingChanged: "আগে ব্যালেন্সের স্লাইডার সরান অথবা অন্তত একটি ঘর পূরণ করুন।",
+        fieldInvalid: (name) => "অনুগ্রহ করে \"" + name + "\" ঘরটি দেখুন। ০ থেকে ৫,০০,০০০-এর মধ্যে একটি সংখ্যা দিন; সংখ্যা ও দিন পূর্ণ সংখ্যায় দিতে হবে।",
+        fields: {
+          min_balance_d1_20: "১-২০ দিনের সর্বনিম্ন ব্যালেন্স (টাকা)",
+          avg_daily_spend_d1_20: "দৈনিক গড় খরচ (টাকা)",
+          total_inflow_d1_20: "১-২০ দিনে কত টাকা এসেছে",
+          total_outflow_d1_20: "১-২০ দিনে কত টাকা খরচ হয়েছে",
+          cashout_count_d1_20: "ক্যাশ আউটের সংখ্যা",
+          cashout_amount_d1_20: "ক্যাশ আউটের পরিমাণ (টাকা)",
+          days_since_last_inflow: "শেষবার টাকা আসার পর কত দিন (০-২০)",
+          bill_payments_d1_20: "বিল পরিশোধের সংখ্যা",
+          prev_month_shortfall: "গত মাসে টাকা কম পড়েছিল (০ = না, ১ = হ্যাঁ)",
+          inflow_vs_prev_month: "এ পর্যন্ত আসা টাকা বনাম গত মাসের মোট (অনুপাত; ১ = গত মাসের মোটের সমান)"
+        }
+      },
+      // Results tab: English only by design (only the two tab labels above follow the language toggle).
+      // Functions receive values already formatted; every number comes from GET /results.
+      results: {
+        note: "This tab is in English only.",
+        loading: "Loading results…",
+        error: "Could not load the results. Open this tab again to retry.",
+        honestTitle: "What this shows, honestly",
+        simulated: "All data here is simulated. None of it is real upay data.",
+        ruleStrong: "The simple day-20 balance rule is already strong. On View 2 (user-months not already below the floor on day 20):",
+        prName: "PR-AUC",
+        recallName: "Recall at equal alert volume",
+        lead: (name, diff, lo, hi, clear, ahead) => name + ": model minus day-20 rule " + diff + " (95% bootstrap interval " +
+          lo + " to " + hi + "); " + (clear ? (ahead ? "a small lead" : "no lead") + ", not statistically clear." : "the interval does not include zero."),
+        addsTitle: "What the model adds:",
+        addMae: (model, naive) => "A minimum-balance estimate: typical error (MAE) " + model + " for the model vs " + naive +
+          " for the naive guess (minimum = day-20 balance).",
+        addReason: "A reason for every alert: the top factors behind that prediction.",
+        addDirection: (x) => "Direction check: share of test rows where a higher day-20 balance raised the risk: " + x + ".",
+        addFairness: "A fairness check by group (table below).",
+        addLeak: (shuffled, holdout, same) => "Leakage tests: a model trained on shuffled labels scores test ROC-AUC " + shuffled +
+          ". View 2 PR-AUC on users never seen in training: " + holdout + ", against " + same + " for the main model on the same users.",
+        timing: (n, median, mean) => "Alerts come on day 20, so warning time is short. For the " + n +
+          " test shortfalls the model caught, the first dip below the floor came a median of " + median +
+          " day(s) after day 20 (mean " + mean + "). This does not cover shortfalls the model missed.",
+        bufferRule: "The buffer is a rule, not a model output: 3 days of the user's own average daily spending, rounded up to " +
+          "500 BDT, at least 500 BDT, never more than the day-20 balance rounded down to 500 BDT.",
+        feePlaceholder: (pct) => "The cash-out fee rate of " + pct + "% is a placeholder, not sourced.",
+        decide: "Suggestions only. The user decides; nothing happens automatically.",
+        tableTitle: "Model and baselines",
+        caption: (months) => "View 2, simulated test months " + months,
+        colMethod: "Method",
+        rowModel: "Model",
+        rowRule: "Day-20 balance rule",
+        rowPersistence: "Persistence (alert if last month had a shortfall)",
+        notInArtifacts: "not in artifacts",
+        rowDiff: "Model minus day-20 rule (difference of the two values above)",
+        rowInterval: "95% bootstrap interval",
+        range: (lo, hi) => lo + " to " + hi,
+        maeTitle: "Minimum-balance estimate (typical error, lower is better)",
+        maeModel: "Model",
+        maeNaive: "Naive guess (minimum = day-20 balance)",
+        shapTitle: "Why the model alerts",
+        shapNote: "Average size of each input's effect on the model (mean |SHAP|), top 8. Patterns in simulated data, not causes.",
+        featureNames: { balance_day20: "Day-20 balance" },   // Others fall back to the wallet's English field labels.
+        fairTitle: "Fairness check (simulated test months, model alerts)",
+        attrNames: { income_band: "Income band", region: "Region", age_band: "Age band" },
+        fairCols: ["Group", "Rows", "Shortfall rate", "Alert rate", "Recall", "False-alarm rate", "Low sample"],
+        yes: "yes",
+        no: "no",
+        gaps: (recall, fpr) => "Largest gaps: recall " + recall + ", false-alarm rate " + fpr + ".",
+        fairLine: (groups, low) => (low === 0 ? "All " + groups + " groups have enough rows; none is flagged low-sample."
+          : low + " of " + groups + " groups are flagged low-sample.") +
+          " These gaps are measured on simulated data. They do not show that there is no bias; re-check them on real data.",
+        impactTitle: "Fees the saver could act on (simulated)",
+        impactAssumption: "Assumption: 1.5% placeholder fee, simulated cash-outs. This is the fee base the saver can act on, not savings achieved.",
+        impactPast: "These are fees already paid on days 1-20, not future fees.",
+        impactAlerted: (n, months) => "Alerted user-months (simulated test months " + months + "): " + n + ".",
+        impactShown: (n) => "Of those, the cash-out saver would show for " + n + ".",
+        impactFees: (fees) => "Total cash-out fees already paid in the user-months where the saver would show, at the placeholder rate: " + fees + ".",
+        notAvailable: "not available",
+        impactAvgAlerted: (x) => "Average per alerted user-month: " + x + " (total fees divided by the alerted count).",
+        impactAvgShown: (x) => "Average per saver-shown user-month: " + x + " (total fees divided by the saver-shown count).",
+        impactRate: (pct) => "Fee rate used: " + pct + "% of each cash-out amount (placeholder).",
+        impactMissing: "The impact figures are not available right now.",
+        pathTitle: "Path to real data",
+        path: [
+          "Pilot with an opted-in group of users under a data-sharing agreement.",
+          "Replace the simulated data with real history and re-run the same tests (leakage, fairness, direction sanity).",
+          "Source the real cash-out fee schedule and replace the placeholder rate.",
+          "Measure real alert timing and test earlier alert days.",
+          "Handle consent, data minimisation and security before any pilot."
+        ]
+      }
+    };
+
+    // SECTION: page state. Current language, month order, and counters to ignore late (stale) answers.
+    const MONTH_ORDER = [4, 5, 0, 1, 2, 3];   // Demo months first, then training months.
+    const TRAINING_MONTHS = [0, 1, 2, 3];
+    let lang = "en";
+    let requestCounter = 0;                   // Forecast requests.
+    const counters = { summary: 0, savings: 0, whatif: 0, results: 0 };   // One counter per new section.
+    let resultsData = null;                   // GET /results, kept in memory after the first successful load.
+    let lastForecast = null;                  // Kept so the chart text can be redrawn without a new request.
+    let lastSavingsBody = null;               // Last savings request, re-sent when the language changes.
+    // What-if state: which user-month it belongs to, the API's day-20 balance, whether the slider was moved.
+    let wi = { key: null, start: null, touched: false, lastOverrides: null };
+
+    // SECTION: what-if inputs. The 10 optional keys with the contract's limits (balance_day20 is the slider).
+    const WHATIF_FIELDS = [
+      { key: "min_balance_d1_20", max: 500000, whole: false },
+      { key: "avg_daily_spend_d1_20", max: 500000, whole: false },
+      { key: "total_inflow_d1_20", max: 500000, whole: false },
+      { key: "total_outflow_d1_20", max: 500000, whole: false },
+      { key: "cashout_count_d1_20", max: 500000, whole: true },
+      { key: "cashout_amount_d1_20", max: 500000, whole: false },
+      { key: "days_since_last_inflow", max: 20, whole: true },
+      { key: "bill_payments_d1_20", max: 500000, whole: true },
+      { key: "prev_month_shortfall", max: 1, whole: true },
+      { key: "inflow_vs_prev_month", max: 500000, whole: false }
+    ];
+
+    // SECTION: small helpers. Look up an element, make an element with text, format numbers.
+    const $ = (id) => document.getElementById(id);
+    const S = () => STRINGS[lang];
+    function el(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;   // textContent only: API text is never treated as HTML.
+      return node;
+    }
+    // Formats a number exactly as given (no rounding of whole numbers) in Bangla or English digits.
+    // An optional language (the English-only results tab passes "en"); the default is the page language.
+    function num(n, inLang = lang) {
+      return new Intl.NumberFormat(inLang === "bn" ? "bn-BD" : "en-US", { maximumFractionDigits: 20 }).format(n);
+    }
+    const taka = (n, inLang = lang) => "৳" + num(n, inLang);
+    // Metric formatters for the results tab: 3 fixed decimals, and an explicit sign for differences.
+    const fixed3 = (x) => Number(x).toFixed(3);
+    const signed3 = (x) => (x > 0 ? "+" : "") + Number(x).toFixed(3);
+    const selectedUser = () => $("user-select").value;
+    const selectedMonth = () => $("month-select").value;
+
+    // SECTION: status messages (loading, error, clear).
+    function showStatus(text, isError) {
+      $("status").textContent = text;
+      $("status").classList.toggle("error", !!isError);
+    }
+    // Builds a short friendly message from the API's error JSON; never shows raw text.
+    async function errorMessage(response) {
+      try {
+        const body = await response.json();
+        const msg = lang === "bn" ? body.error_bn : body.error;
+        if (typeof msg === "string" && msg) return msg;
+      } catch (_ignored) { /* Not JSON: fall through to the generic message. */ }
+      return S().errorFallback;
+    }
+
+    // SECTION: request helper for the new sections. Returns { data } or { msg }, or null when a newer
+    // request for the same section has started (the late answer is ignored).
+    async function fetchJson(section, url, body) {
+      const mine = ++counters[section];
+      const current = () => mine === counters[section];
+      try {
+        const options = body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined;
+        const response = await fetch(url, options);
+        if (!current()) return null;
+        if (!response.ok) {
+          const msg = await errorMessage(response);
+          return current() ? { msg } : null;
+        }
+        const data = await response.json();
+        return current() ? { data } : null;
+      } catch (_e) {
+        return current() ? { msg: S().errorFallback } : null;
+      }
+    }
+
+    // SECTION: fixed labels. Fills every element marked data-s="key" (and data-f="field") from STRINGS.
+    function applyStrings() {
+      document.documentElement.lang = lang;
+      document.querySelectorAll("[data-s]").forEach((node) => { node.textContent = S()[node.dataset.s]; });
+      document.querySelectorAll("[data-f]").forEach((node) => { node.textContent = S().fields[node.dataset.f]; });
+      $("lang-group").setAttribute("aria-label", S().langGroup);
+      $("lang-en").setAttribute("aria-pressed", String(lang === "en"));
+      $("lang-bn").setAttribute("aria-pressed", String(lang === "bn"));
+      // Relabel dropdown options in the chosen language (values stay the same).
+      for (const opt of $("user-select").options) opt.textContent = S().userN(num(Number(opt.value)));
+      for (const opt of $("month-select").options) {
+        const m = Number(opt.value);
+        opt.textContent = S().monthN(num(m)) + " (" + (TRAINING_MONTHS.includes(m) ? S().monthTraining : S().monthTest) + ")";
+      }
+      showSliderValues();
+    }
+
+    // SECTION: month dropdown. Months 4 and 5 first, then 0-3.
+    function buildMonths() {
+      for (const m of MONTH_ORDER) {
+        const opt = document.createElement("option");
+        opt.value = String(m);
+        $("month-select").appendChild(opt);
+      }
+      $("month-select").value = "4";
+    }
+
+    // SECTION: what-if fields. One blank number input per optional key; labels come from STRINGS.
+    function buildWhatifFields() {
+      for (const f of WHATIF_FIELDS) {
+        const label = el("label", "field");
+        const caption = el("span");
+        caption.dataset.f = f.key;
+        const input = el("input");
+        input.type = "number"; input.id = "wi-" + f.key; input.min = "0"; input.max = String(f.max);
+        input.step = f.whole ? "1" : "any";
+        input.inputMode = f.whole ? "numeric" : "decimal";
+        label.append(caption, input);
+        $("wi-fields").appendChild(label);
+      }
+    }
+
+    // SECTION: user dropdown. Filled from GET /users; first user is the default.
+    async function loadUsers() {
+      showStatus(S().loading);
+      try {
+        const response = await fetch("/users");
+        if (!response.ok) { showStatus(await errorMessage(response), true); return false; }
+        const users = await response.json();
+        for (const u of users) {
+          const opt = document.createElement("option");
+          opt.value = String(u.user_id);
+          $("user-select").appendChild(opt);
+        }
+        if (users.length) return true;
+      } catch (_e) { /* Network or format problem: show the generic message below. */ }
+      showStatus(S().errorFallback, true);
+      return false;
+    }
+
+    // SECTION: forecast request. Only the newest request may update the page.
+    async function loadForecast() {
+      const myRequest = ++requestCounter;
+      const userId = selectedUser();
+      const month = selectedMonth();
+      showStatus(S().loading);
+      $("cards").setAttribute("aria-busy", "true");
+      try {
+        const response = await fetch("/users/" + encodeURIComponent(userId) + "/months/" +
+          encodeURIComponent(month) + "/forecast?lang=" + lang);
+        if (myRequest !== requestCounter) return;               // A newer request has started: ignore this one.
+        if (!response.ok) {
+          const msg = await errorMessage(response);
+          if (myRequest !== requestCounter) return;
+          showStatus(msg, true);
+          $("cards").hidden = true; $("footer").hidden = true;
+          return;
+        }
+        const data = await response.json();
+        if (myRequest !== requestCounter) return;
+        lastForecast = data;
+        render(data);
+        showStatus("");
+      } catch (_e) {
+        if (myRequest !== requestCounter) return;
+        showStatus(S().errorFallback, true);
+        $("cards").hidden = true; $("footer").hidden = true;
+      } finally {
+        if (myRequest === requestCounter) $("cards").removeAttribute("aria-busy");
+      }
+    }
+
+    // SECTION: render. Puts one forecast on the page. Shows numbers exactly as the API sent them.
+    function render(d) {
+      renderRisk(d);
+      renderChart(d);
+      renderReasons(d);
+      renderSuggestions(d);
+      setupWhatif(d);
+      $("training").hidden = !d.month_in_training;
+      $("disclaimer").textContent = d.disclaimer;
+      $("cards").hidden = false;
+      $("footer").hidden = false;
+    }
+
+    // SECTION: risk card. Band chip, the API's sentence, and the estimated minimum when present.
+    function renderRisk(d) {
+      const chip = $("risk-chip");
+      chip.className = "chip " + d.risk_band;
+      chip.textContent = S().band[d.risk_band] || d.risk_band;
+      $("risk-text").textContent = d.risk_band_text;
+      const min = d.predicted_min_balance;
+      $("min-balance").hidden = !min;
+      if (min) $("min-balance").textContent = S().minBalance(taka(min.amount_bdt), taka(min.typical_error_bdt));
+    }
+
+    // SECTION: chart. Inline SVG: balance line days 1-20, dashed floor, shaded days 21-30, axis labels.
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    function svg(tag, attrs, text) {
+      const node = document.createElementNS(SVG_NS, tag);
+      for (const k in attrs) node.setAttribute(k, attrs[k]);
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+    function renderChart(d) {
+      const W = 360, H = 210, L = 8, R = 8, T = 16, B = 26;    // Size and margins in drawing units.
+      const points = d.balance_by_day || [];
+      const values = points.map((p) => p.balance_bdt).concat([d.floor_bdt]);
+      const top = Math.max(...values, 1) * 1.15;                // Headroom above the highest value (drawing only).
+      const bottom = Math.min(0, ...values);
+      const x = (day) => L + (day - 1) / 29 * (W - L - R);
+      const y = (v) => T + (top - v) / (top - bottom) * (H - T - B);
+
+      const day20 = points.find((p) => p.day === 20);
+      const root = svg("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-labelledby": "chart-alt-t chart-alt-d" });
+      root.appendChild(svg("title", { id: "chart-alt-t" }, S().chartTitle));
+      root.appendChild(svg("desc", { id: "chart-alt-d" },
+        S().chartAlt(day20 ? taka(day20.balance_bdt) : "-", taka(d.floor_bdt))));
+
+      // Shaded area for days 21-30 with its label.
+      root.appendChild(svg("rect", { x: x(20), y: T, width: x(30) - x(20), height: H - T - B, fill: "var(--chart-unknown)" }));
+      root.appendChild(svg("text", { x: (x(20) + x(30)) / 2, y: T + 18, "text-anchor": "middle", class: "axis-text" }, S().notKnown));
+
+      // Where the two value labels go: the end-point label sits right of the last dot (below the
+      // "not known yet" label); the floor label sits at the right end of its line, above it unless
+      // that would crowd the top or the end-point label, then below it.
+      const last = points.length ? points[points.length - 1] : null;
+      const endY = last ? Math.min(H - B - 4, Math.max(T + 36, y(last.balance_bdt) + 4)) : null;
+      const fy = y(d.floor_bdt);
+      let floorY = fy - 5 < T + 34 ? fy + 14 : fy - 5;
+      if (endY !== null && Math.abs(floorY - endY) < 14) floorY = floorY === fy - 5 ? fy + 14 : fy - 5;
+
+      // Dashed floor line with its label at the right end, away from the balance line.
+      root.appendChild(svg("line", { x1: L, x2: W - R, y1: fy, y2: fy,
+        stroke: "var(--chart-floor)", "stroke-width": 1.5, "stroke-dasharray": "5 4" }));
+      root.appendChild(svg("text", { x: W - R - 2, y: floorY, "text-anchor": "end", class: "floor-text halo" },
+        S().floor(taka(d.floor_bdt))));
+
+      // Balance line for days 1-20, with a dot and the API's balance on the last day.
+      if (last) {
+        root.appendChild(svg("polyline", { points: points.map((p) => x(p.day) + "," + y(p.balance_bdt)).join(" "),
+          fill: "none", stroke: "var(--chart-line)", "stroke-width": 2.5, "stroke-linejoin": "round" }));
+        root.appendChild(svg("circle", { cx: x(last.day), cy: y(last.balance_bdt), r: 4, fill: "var(--chart-line)" }));
+        root.appendChild(svg("text", { x: x(last.day) + 7, y: endY, class: "end-text halo" }, taka(last.balance_bdt)));
+      }
+
+      // Baseline and day labels at 1, 10 and 20.
+      root.appendChild(svg("line", { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: "var(--line)" }));
+      for (const day of [1, 10, 20]) {
+        const anchor = day === 1 ? "start" : "middle";
+        root.appendChild(svg("text", { x: x(day), y: H - 8, "text-anchor": anchor, class: "axis-text" }, S().day(num(day))));
+      }
+      $("chart").replaceChildren(root);
+    }
+
+    // SECTION: reasons. API text with a neutral up or down arrow.
+    function renderReasons(d) {
+      const list = $("reasons");
+      list.replaceChildren();
+      for (const r of d.reasons || []) {
+        const li = el("li");
+        const arrow = el("span", "arrow", r.direction === "up" ? "↑" : "↓");
+        arrow.setAttribute("role", "img");
+        arrow.setAttribute("aria-label", r.direction === "up" ? S().up : S().down);
+        li.append(arrow, el("span", "", r.text));
+        list.appendChild(li);
+      }
+    }
+
+    // SECTION: suggestions and notes. Shortfall warning first, then buffer, cash-out saver, savings note.
+    function renderSuggestions(d) {
+      const box = $("suggestions");
+      box.replaceChildren();
+      const sugg = (type) => (d.suggestions || []).find((s) => s.type === type);
+      const note = (type) => (d.notes || []).find((n) => n.type === type);
+      const addNote = (type) => {
+        const n = note(type);
+        if (n) { const card = el("div", "card note"); card.appendChild(el("p", "", n.text)); box.appendChild(card); }
+      };
+
+      // Shortfall warning above the suggestion cards.
+      addNote("shortfall_warning");
+      // Buffer card: big amount, then its text.
+      const buffer = sugg("buffer");
+      if (buffer) {
+        const card = el("div", "card");
+        card.append(el("span", "tag", S().tag), el("h2", "", S().bufferTitle),
+          el("div", "big-amount", taka(buffer.amount_bdt)), el("p", "", buffer.text));
+        box.appendChild(card);
+      }
+      // Cash-out saver card: its text, plus the English fee-rate label in the English view only
+      // (the Bangla text already says it).
+      const cashout = sugg("cashout_saver");
+      if (cashout) {
+        const card = el("div", "card");
+        card.append(el("span", "tag", S().tag), el("h2", "", S().cashoutTitle), el("p", "", cashout.text));
+        if (lang === "en") card.appendChild(el("p", "fee-label", cashout.fee_rate_label));
+        box.appendChild(card);
+      }
+      // Savings-blocked note after the suggestions.
+      addNote("savings_blocked_alert");
+      // Clear card when there is an alert but no buffer.
+      const noBuffer = note("no_buffer_low_balance");
+      if (d.alert && !buffer && noBuffer) {
+        const card = el("div", "card note clear");
+        card.append(el("h2", "", S().noBufferTitle), el("p", "", noBuffer.text));
+        box.appendChild(card);
+      }
+      $("sugg-section").hidden = box.children.length === 0;
+    }
+
+    // SECTION: month summary. Bars for categories and weeks; widths are scaled to the largest amount
+    // in each list for display only, and every number shown is the API's.
+    // The optional fmt formats each amount; the default (taka) keeps the month-summary bars as they were.
+    function bars(list, items, fmt = taka) {
+      const most = Math.max(0, ...items.map((i) => i.amount));
+      list.replaceChildren(...items.map((i) => {
+        const li = el("li");
+        const row = el("div", "bar-row");
+        row.append(el("span", "", i.label), el("span", "bar-amount", fmt(i.amount)));
+        const track = el("div", "bar-track");
+        track.setAttribute("aria-hidden", "true");
+        const fill = el("div", "bar-fill");
+        fill.style.width = (most > 0 ? Math.max(0, i.amount) / most * 100 : 0) + "%";
+        track.appendChild(fill);
+        li.append(row, track);
+        return li;
+      }));
+    }
+    async function loadSummary() {
+      const msg = $("summary-msg");
+      msg.className = "msg soft";
+      msg.textContent = S().loading;
+      const r = await fetchJson("summary", "/users/" + encodeURIComponent(selectedUser()) + "/months/" +
+        encodeURIComponent(selectedMonth()) + "/summary?lang=" + lang);
+      if (!r) return;                                           // A newer summary request is running.
+      if (r.msg) { msg.className = "msg form-error"; msg.textContent = r.msg; $("summary-body").hidden = true; return; }
+      const d = r.data;
+      bars($("sum-cat"), (d.by_category || []).map((c) => ({ label: c.label, amount: c.amount_bdt })));
+      bars($("sum-week"), (d.by_week || []).map((w) => ({ label: S().week(num(w.start_day), num(w.end_day)), amount: w.amount_bdt })));
+      $("sum-text").textContent = d.text;
+      msg.textContent = "";
+      $("summary-body").hidden = false;
+    }
+
+    // SECTION: savings planner. Checks the inputs, sends the plan request, shows the API's answer.
+    // Plan numbers and options appear only for feasible / not_feasible and only when the API sends them.
+    function wholeIn(input, lo, hi) {
+      const raw = input.value.trim();
+      const n = Number(raw);
+      return raw !== "" && Number.isInteger(n) && n >= lo && n <= hi ? n : null;
+    }
+    function showSavingsMessage(text) {
+      counters.savings++;                                       // Any answer still on its way is now stale.
+      lastSavingsBody = null;
+      $("savings-out").replaceChildren(el("p", "form-error", text));
+    }
+    async function sendSavings(body) {
+      lastSavingsBody = body;
+      const out = $("savings-out");
+      out.replaceChildren(el("p", "soft", S().loading));
+      const r = await fetchJson("savings", "/savings-plan", Object.assign({}, body, { lang }));
+      if (!r) return;
+      if (r.msg) { out.replaceChildren(el("p", "form-error", r.msg)); return; }
+      const d = r.data;
+      const parts = [el("p", "", d.text)];
+      const plan = (d.status === "feasible" || d.status === "not_feasible") ? d.plan : null;
+      if (plan) {
+        const list = el("ul");
+        list.appendChild(el("li", "", S().planMonthly(taka(plan.monthly_bdt))));
+        if (plan.reaches_goal) list.appendChild(el("li", "", S().planMonths(num(plan.months))));
+        if (plan.saved_in_max_months_bdt != null) {
+          list.appendChild(el("li", "", S().planSavedMax(taka(plan.saved_in_max_months_bdt), num(plan.months))));
+        }
+        parts.push(list);
+        if (Array.isArray(d.options) && d.options.length) {
+          const options = el("ul");
+          for (const o of d.options) options.appendChild(el("li", "", o.text));
+          parts.push(el("h3", "", S().optionsTitle), options);
+        }
+      }
+      if (d.disclaimer) parts.push(el("p", "soft", d.disclaimer));
+      out.replaceChildren(...parts);
+    }
+    $("savings-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const goal = wholeIn($("sv-goal"), 1, 500000);
+      const months = wholeIn($("sv-months"), 1, 24);
+      if (goal === null) { showSavingsMessage(S().goalInvalid); return; }
+      if (months === null) { showSavingsMessage(S().monthsInvalid); return; }
+      sendSavings({ user_id: Number(selectedUser()), month: Number(selectedMonth()), goal_bdt: goal, months });
+    });
+
+    // SECTION: what-if slider. Starts at the forecast's last balance_by_day point. The range is display
+    // scaling only; until the slider is moved the API's own number is shown and nothing is sent for it.
+    const sliderValue = () => (wi.touched ? Number($("wi-balance").value) : wi.start);
+    function showSliderValues() {
+      const ready = wi.start !== null;
+      $("wi-now").textContent = ready ? S().sliderNow(taka(sliderValue())) : "";
+      $("wi-start").textContent = ready ? S().sliderStart(taka(wi.start)) : "";
+      if (ready) $("wi-balance").setAttribute("aria-valuetext", taka(sliderValue()));
+    }
+    function setupWhatif(d) {
+      const key = selectedUser() + "/" + selectedMonth();
+      if (key === wi.key) { showSliderValues(); return; }      // Same user-month (language change): keep the user's edits.
+      const points = d.balance_by_day || [];
+      const start = points.length ? points[points.length - 1].balance_bdt : null;
+      wi = { key, start, touched: false, lastOverrides: null };
+      const slider = $("wi-balance");
+      if (start !== null) {
+        slider.max = String(Math.min(500000, Math.max(Math.ceil(start * 2), 10000)));
+        slider.value = String(start);
+      }
+      slider.disabled = start === null;
+      $("wi-reset").disabled = start === null;
+      $("wi-send").disabled = false;
+      showSliderValues();
+    }
+    $("wi-balance").addEventListener("input", () => { wi.touched = true; showSliderValues(); });
+    $("wi-balance").addEventListener("change", tryWhatif);     // Sent on release, not on every drag step.
+    $("wi-reset").addEventListener("click", () => {
+      wi.touched = false;
+      $("wi-balance").value = String(wi.start);
+      showSliderValues();
+    });
+
+    // SECTION: what-if request. Collects only the keys the user changed, checks them, then sends.
+    function collectOverrides() {
+      const overrides = {};
+      if (wi.touched && wi.start !== null && sliderValue() !== wi.start) overrides.balance_day20 = sliderValue();
+      for (const f of WHATIF_FIELDS) {
+        const input = $("wi-" + f.key);
+        const raw = input.value.trim();
+        if (raw === "" && !input.validity.badInput) continue;  // Left blank: not sent.
+        const n = Number(raw);
+        if (raw === "" || !Number.isFinite(n) || n < 0 || n > f.max || (f.whole && !Number.isInteger(n))) {
+          return { error: S().fieldInvalid(S().fields[f.key]) };
+        }
+        overrides[f.key] = n;
+      }
+      return { overrides };
+    }
+    function showWhatifMessage(text) {
+      counters.whatif++;                                        // Any answer still on its way is now stale.
+      wi.lastOverrides = null;
+      $("wi-out").replaceChildren(el("p", "form-error", text));
+    }
+    function tryWhatif() {
+      if (wi.key === null) return;                             // No forecast for this user-month yet.
+      const c = collectOverrides();
+      if (c.error) { showWhatifMessage(c.error); return; }
+      if (!Object.keys(c.overrides).length) { showWhatifMessage(S().nothingChanged); return; }
+      sendWhatif(c.overrides);
+    }
+    async function sendWhatif(overrides) {
+      wi.lastOverrides = overrides;
+      const out = $("wi-out");
+      out.replaceChildren(el("p", "soft", S().loading));
+      const r = await fetchJson("whatif", "/whatif",
+        { user_id: Number(selectedUser()), month: Number(selectedMonth()), overrides, lang });
+      if (!r) return;
+      if (r.msg) { out.replaceChildren(el("p", "form-error", r.msg)); return; }
+      const d = r.data;
+      // Original and new band side by side. Bands only, never a probability.
+      const side = (caption, band) => {
+        const box = el("div");
+        box.append(el("span", "soft", caption), el("span", "chip " + band, S().band[band] || band));
+        return box;
+      };
+      const arrow = el("span", "soft", "→");
+      arrow.setAttribute("aria-hidden", "true");
+      const compare = el("div", "compare");
+      compare.append(side(S().compareBefore, (d.original || {}).risk_band), arrow, side(S().compareAfter, (d.whatif || {}).risk_band));
+      out.replaceChildren(compare, el("p", "", d.risk_change_text), el("p", "soft", d.note));
+    }
+    $("wi-form").addEventListener("submit", (event) => { event.preventDefault(); tryWhatif(); });
+
+    // SECTION: results tab helpers. A card with a heading, and a real table (row headers, column headers)
+    // inside a scrolling box so it never widens the page.
+    function resultsCard(title, ...children) {
+      const card = el("section", "card");
+      card.append(el("h2", "", title), ...children);
+      return card;
+    }
+    function makeTable(caption, headers, rows) {
+      const table = el("table");
+      table.appendChild(el("caption", "", caption));
+      const headRow = el("tr");
+      headers.forEach((h, i) => { const th = el("th", i ? "num" : "", h); th.scope = "col"; headRow.appendChild(th); });
+      table.appendChild(el("thead")).appendChild(headRow);
+      const body = table.appendChild(el("tbody"));
+      for (const r of rows) {
+        const tr = body.appendChild(el("tr"));
+        r.forEach((c, i) => {
+          const cell = el(i ? "td" : "th", i ? "num" : "", c);
+          if (!i) cell.scope = "row";
+          tr.appendChild(cell);
+        });
+      }
+      const wrap = el("div", "table-wrap");
+      wrap.appendChild(table);
+      return wrap;
+    }
+    function plainList(items) {
+      const list = el("ul", "plain-list");
+      for (const item of items) list.appendChild(typeof item === "string" ? el("li", "", item) : item);
+      return list;
+    }
+
+    // SECTION: results tab render. Every number comes from GET /results; the only arithmetic is the
+    // model-minus-rule difference of two served values and the "interval includes zero" test.
+    function renderResults(d) {
+      const R = STRINGS.results;
+      const en = (x) => num(x, "en");
+      const m = d.metrics, v2 = m.view2_not_below_day20, ci = m.bootstrap_95ci, mae = m.min_balance_mae_bdt;
+      const lead = m.lead_time_days, sanity = m.sanity;
+      const includesZero = (range) => range[0] <= 0 && 0 <= range[1];
+      const prDiff = v2.model.pr_auc - v2.rule.pr_auc;
+      const recDiff = v2.equal_volume.model_recall - v2.equal_volume.rule_recall;
+      const prCi = ci.view2_pr_auc_diff, recCi = ci.view2_equal_volume_recall_diff;
+      const leadLine = (name, diff, range) => R.lead(name, signed3(diff), signed3(range[0]), signed3(range[1]), includesZero(range), diff > 0);
+
+      // 1. Honest summary: six statements.
+      const ruleItem = el("li");
+      ruleItem.append(el("span", "", R.ruleStrong), plainList([leadLine(R.prName, prDiff, prCi), leadLine(R.recallName, recDiff, recCi)]));
+      const addsItem = el("li");
+      addsItem.append(el("span", "", R.addsTitle), plainList([
+        R.addMae(taka(mae.model_all, "en"), taka(mae.naive_all, "en")),
+        R.addReason,
+        R.addDirection(fixed3(sanity.direction_share_up)),
+        R.addFairness,
+        R.addLeak(fixed3(sanity.shuffled_label_test_roc_auc), fixed3(sanity.holdout_users_view2_pr_auc),
+          fixed3(sanity.main_model_same_users_view2_pr_auc))
+      ]));
+      const cards = [resultsCard(R.honestTitle, plainList([
+        R.simulated, ruleItem, addsItem,
+        R.timing(en(lead.n), en(lead.median), en(lead.mean)),
+        R.bufferRule + " " + R.feePlaceholder(en(d.impact.fee_rate_pct)),
+        R.decide
+      ]))];
+
+      // 2. View 2 table: each method's served values, then the difference and the bootstrap intervals.
+      cards.push(resultsCard(R.tableTitle, makeTable(R.caption(d.impact.months.map(en).join(", ")),
+        [R.colMethod, R.prName, R.recallName], [
+          [R.rowModel, fixed3(v2.model.pr_auc), fixed3(v2.equal_volume.model_recall)],
+          [R.rowRule, fixed3(v2.rule.pr_auc), fixed3(v2.equal_volume.rule_recall)],
+          [R.rowPersistence, fixed3(v2.persistence.pr_auc), R.notInArtifacts],
+          [R.rowDiff, signed3(prDiff), signed3(recDiff)],
+          [R.rowInterval, R.range(signed3(prCi[0]), signed3(prCi[1])), R.range(signed3(recCi[0]), signed3(recCi[1]))]
+        ])));
+
+      // 3. Minimum-balance estimate: model vs naive error as two bars.
+      const maeBars = el("ul", "bars");
+      bars(maeBars, [{ label: R.maeModel, amount: mae.model_all }, { label: R.maeNaive, amount: mae.naive_all }], (x) => taka(x, "en"));
+      cards.push(resultsCard(R.maeTitle, maeBars));
+
+      // 4. Global SHAP importance, top 8, with plain names (raw name when there is no label).
+      const shap = Object.entries(d.shap_global.mean_abs_shap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+      const shapBars = el("ul", "bars");
+      bars(shapBars, shap.map(([k, v]) => ({ label: R.featureNames[k] || STRINGS.en.fields[k] || k, amount: v })), fixed3);
+      cards.push(resultsCard(R.shapTitle, el("p", "soft", R.shapNote), shapBars));
+
+      // 5. Fairness: one table per column, exactly as the artifact has it, then what it supports.
+      const fairParts = [];
+      let groupCount = 0, lowCount = 0;
+      for (const [attr, info] of Object.entries(d.fairness)) {
+        const rows = Object.entries(info.groups).map(([g, x]) => {
+          groupCount += 1;
+          if (x.low_sample) lowCount += 1;
+          return [g, en(x.rows), fixed3(x.shortfall_rate), fixed3(x.alert_rate), fixed3(x.recall), fixed3(x.fpr), x.low_sample ? R.yes : R.no];
+        });
+        fairParts.push(makeTable(R.attrNames[attr] || attr, R.fairCols, rows),
+          el("p", "soft", R.gaps(fixed3(info.largest_gaps.recall), fixed3(info.largest_gaps.fpr))));
+      }
+      cards.push(resultsCard(R.fairTitle, ...fairParts, el("p", "", R.fairLine(en(groupCount), lowCount))));
+
+      // 7 and 8. Impact card (added in its own section below), then the path to real data.
+      const impact = impactCard(d.impact);
+      if (impact) cards.push(impact);
+      cards.push(resultsCard(R.pathTitle, plainList(R.path)));
+      cards.push(el("p", "disclaimer", d.disclaimer));
+      $("results-body").replaceChildren(...cards);
+    }
+    // SECTION: impact card. Reads only the served impact field; no arithmetic. A missing or broken field
+    // gives a one-line message instead of a blank card.
+    function impactCard(m) {
+      const R = STRINGS.results;
+      const ok = m && ["alerted_user_months", "saver_shown_user_months", "fees_bdt"].every((k) => Number.isFinite(m[k]));
+      if (!ok) return resultsCard(R.impactTitle, el("p", "soft", R.impactMissing));
+      const avg = (x) => (Number.isFinite(x) ? taka(x, "en") : R.notAvailable);
+      const months = Array.isArray(m.months) ? m.months.join(", ") : R.notAvailable;
+      const lines = [
+        R.impactAlerted(num(m.alerted_user_months, "en"), months),
+        R.impactShown(num(m.saver_shown_user_months, "en")),
+        R.impactFees(taka(m.fees_bdt, "en")),
+        R.impactAvgAlerted(avg(m.avg_fees_per_alerted_bdt)),
+        R.impactAvgShown(avg(m.avg_fees_per_saver_shown_bdt))
+      ];
+      if (Number.isFinite(m.fee_rate_pct)) lines.push(R.impactRate(num(m.fee_rate_pct, "en")));
+      return resultsCard(R.impactTitle, plainList(lines),
+        el("p", "soft", R.impactAssumption), el("p", "soft", R.impactPast));
+    }
+
+    // SECTION: results tab load. Fetched once, the first time the tab opens; a failure lets the next open retry.
+    async function loadResults() {
+      const msg = $("results-msg");
+      msg.className = "msg soft";
+      msg.textContent = STRINGS.results.loading;
+      const r = await fetchJson("results", "/results");
+      if (!r) return;                                           // A newer request is running.
+      try {
+        if (!r.data) throw new Error("no data");
+        renderResults(r.data);
+        resultsData = r.data;
+        msg.textContent = "";
+      } catch (_e) {
+        msg.className = "msg form-error";
+        msg.textContent = STRINGS.results.error;
+      }
+    }
+
+    // SECTION: tabs. Shows one panel and hides the other; the wallet is never reloaded by switching.
+    // Left and right arrow keys move between tabs.
+    function showTab(name, focus) {
+      for (const t of ["wallet", "results"]) {
+        const on = t === name;
+        $("tab-" + t).setAttribute("aria-selected", String(on));
+        $("tab-" + t).tabIndex = on ? 0 : -1;
+        $("panel-" + t).hidden = !on;
+        if (on && focus) $("tab-" + t).focus();
+      }
+      if (name === "results" && !resultsData) loadResults();
+    }
+    $("tab-wallet").addEventListener("click", () => showTab("wallet"));
+    $("tab-results").addEventListener("click", () => showTab("results"));
+    $("tab-list").addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      showTab($("tab-wallet").getAttribute("aria-selected") === "true" ? "results" : "wallet", true);
+    });
+
+    // SECTION: reset on user or month change. Old answers are dropped and the what-if waits for the new forecast.
+    function resetSections() {
+      counters.savings++; counters.whatif++;
+      lastSavingsBody = null;
+      $("savings-out").replaceChildren();
+      wi = { key: null, start: null, touched: false, lastOverrides: null };
+      $("wi-balance").disabled = true; $("wi-reset").disabled = true; $("wi-send").disabled = true;
+      $("wi-out").replaceChildren();
+      for (const f of WHATIF_FIELDS) $("wi-" + f.key).value = "";
+      showSliderValues();
+    }
+
+    // SECTION: events. Dropdowns reload everything; the language toggle relabels and re-fetches.
+    function onSelectionChange() { resetSections(); loadForecast(); loadSummary(); }
+    $("user-select").addEventListener("change", onSelectionChange);
+    $("month-select").addEventListener("change", onSelectionChange);
+    document.querySelectorAll(".lang-toggle button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (btn.dataset.lang === lang) return;
+        lang = btn.dataset.lang;
+        applyStrings();
+        if (lastForecast) renderChart(lastForecast);   // Chart labels follow the language at once.
+        loadForecast();
+        loadSummary();
+        // Re-ask the planner and what-if in the new language; drop page messages in the old one.
+        if (lastSavingsBody) sendSavings(lastSavingsBody); else { counters.savings++; $("savings-out").replaceChildren(); }
+        if (wi.lastOverrides) sendWhatif(wi.lastOverrides); else { counters.whatif++; $("wi-out").replaceChildren(); }
+      });
+    });
+
+    // SECTION: demo personas. Found by scan; the generator is deterministic. A click sets both dropdowns and
+    // runs the same reload as a manual change; savings cases pre-fill the planner but do not send it.
+    const PERSONAS = [
+      { user: 1, month: 4 },                          // Alert, buffer capped by the day-20 balance.
+      { user: 8, month: 4 },                          // Alert, full buffer.
+      { user: 1, month: 5 },                          // Low risk, no alert.
+      { user: 19, month: 4, goal: 10000, months: 6 }, // Savings plan "feasible".
+      { user: 1, month: 0, goal: 10000, months: 6 },  // Savings "no_history".
+      { user: 3, month: 4 }                           // High risk, alert, balance too low for a buffer.
+    ];
+    const personaButtons = document.querySelectorAll("[data-persona]");
+    const clearPersona = () => personaButtons.forEach((b) => b.setAttribute("aria-pressed", "false"));
+    personaButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const p = PERSONAS[Number(btn.dataset.persona)];
+        const userOk = [...$("user-select").options].some((o) => o.value === String(p.user));
+        if (!userOk) return;                           // Users not loaded yet.
+        $("user-select").value = String(p.user);
+        $("month-select").value = String(p.month);
+        clearPersona();
+        btn.setAttribute("aria-pressed", "true");
+        onSelectionChange();
+        if (p.goal) { $("sv-goal").value = String(p.goal); $("sv-months").value = String(p.months); }
+      });
+    });
+    $("user-select").addEventListener("change", clearPersona);    // A manual change clears the highlight.
+    $("month-select").addEventListener("change", clearPersona);
+
+    // SECTION: start-up. Build the month list and what-if fields, label everything, load users, then the data.
+    (async function start() {
+      buildMonths();
+      buildWhatifFields();
+      $("results-note").textContent = STRINGS.results.note;
+      applyStrings();
+      if (await loadUsers()) {
+        applyStrings();
+        loadForecast();
+        loadSummary();
+      }
+    })();
+  </script>
+</body>
+</html>
