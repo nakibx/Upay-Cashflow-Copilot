@@ -57,9 +57,7 @@ python -m src.api.service
 python -m uvicorn src.api.main:app --host 127.0.0.1 --port 8000
 ```
 
-Open your browser and visit:
-
-`http://127.0.0.1:8000/`
+Then open http://127.0.0.1:8000/ in a browser.
 
 ## 🎯 Project Objective
 
